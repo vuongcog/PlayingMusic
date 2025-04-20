@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:working_message_mobile/constants/list.dart';
 
 class MusicPlayerScreen extends StatefulWidget {
-  MusicPlayerScreen({Key? key, required this.title}) : super(key: key);
+  const MusicPlayerScreen({super.key, required this.title});
   final String title;
   @override
   _MusicPlayerScreenState createState() {

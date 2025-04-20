@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class PlayMusicScreen extends StatefulWidget {
-  PlayMusicScreen({Key? key}) : super(key: key);
+  const PlayMusicScreen({super.key});
   @override
   _PlayMusicScreenState createState() {
     return _PlayMusicScreenState();

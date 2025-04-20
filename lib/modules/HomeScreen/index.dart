@@ -26,9 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorTheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Home')),
+      // appBar: AppBar(title: Text('Home')),
       body: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
 
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,

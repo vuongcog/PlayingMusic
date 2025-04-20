@@ -5,11 +5,11 @@ class ToggleNav extends StatelessWidget {
   final Function(int) onPressed;
   final ColorScheme colorTheme;
   const ToggleNav({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onPressed,
     required this.colorTheme,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +38,7 @@ class ToggleNav extends StatelessWidget {
 class _ToggleButtonText extends StatelessWidget {
   final String label;
 
-  const _ToggleButtonText({Key? key, required this.label}) : super(key: key);
+  const _ToggleButtonText({super.key, required this.label});
 
   @override
   Widget build(BuildContext context) {

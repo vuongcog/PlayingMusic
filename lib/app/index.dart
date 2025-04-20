@@ -23,7 +23,7 @@ class App extends StatelessWidget {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<StatefulWidget> createState() {
@@ -54,8 +54,8 @@ class _HomePage extends State<HomePage> {
                   Container(
                     padding: EdgeInsets.all(8),
                     child: Container(
-                      width: 356,
-                      height: 468,
+                      // width: 356,
+                      height: 400,
                       decoration: BoxDecoration(
                         image: DecorationImage(
                           image: AssetImage(
@@ -85,13 +85,13 @@ class _HomePage extends State<HomePage> {
                 ],
               ),
             ),
-            SizedBox(height: 120),
+            SizedBox(height: 40),
             Center(
               child: MaterialButton(
                 minWidth: 170,
                 height: 60,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(38),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 onPressed: () {},
                 color: colorTheme.secondary,

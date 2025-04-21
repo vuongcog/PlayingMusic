@@ -85,7 +85,7 @@ class _HomePage extends State<HomePage> {
                 ],
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 10),
             Center(
               child: MaterialButton(
                 minWidth: 170,
@@ -102,6 +102,39 @@ class _HomePage extends State<HomePage> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
+              ),
+            ),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  MaterialButton(
+                    onPressed: () {},
+                    child: MaterialButton(
+                      onPressed: () => Navigator.pushNamed(context, '/login'),
+                      child: Text(
+                        "Đăng nhập",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  MaterialButton(
+                    onPressed: () {},
+                    child: MaterialButton(
+                      onPressed: () => {Navigator.pushNamed(context, '/home')},
+                      child: Text(
+                        "Đăng ký",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

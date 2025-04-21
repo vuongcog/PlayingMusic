@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:working_message_mobile/app/index.dart';
+import 'package:working_message_mobile/modules/AdminPage/index.dart';
 import 'package:working_message_mobile/modules/HomeScreen/index.dart';
-import 'package:working_message_mobile/modules/PlayingMusicScreen/index.dart';
+import 'package:working_message_mobile/modules/LoginPage/index.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -10,10 +11,10 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => HomePage());
       case '/home':
         return MaterialPageRoute(builder: (_) => HomeScreen());
-      case '/playing_music':
-        return MaterialPageRoute(
-          builder: (_) => MusicPlayerScreen(title: "title"),
-        );
+      case '/login':
+        return MaterialPageRoute(builder: (_) => const LoginPage());
+      case '/admin':
+        return MaterialPageRoute(builder: (_) => const AdminMusicPage());
       default:
         return MaterialPageRoute(
           builder:

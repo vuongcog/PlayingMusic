@@ -5,7 +5,7 @@ import 'package:working_message_mobile/constants/list.dart';
 // import 'package:just_audio_background/just_audio_background.dart';
 
 class FullMusicPlayerScreen extends StatefulWidget {
-  FullMusicPlayerScreen({Key? key, required this.title}) : super(key: key);
+  const FullMusicPlayerScreen({super.key, required this.title});
 
   final String title;
   @override
@@ -42,19 +42,15 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
         _playerStateText = "Đang kết nối tới server...";
       });
 
-      // Sử dụng ProgressiveAudioSource từ just_audio
       final audioSource = ProgressiveAudioSource(
         Uri.parse('http://192.168.3.102:3000/track/stream/alone.mp3'),
-        headers: {
-          'Range': 'bytes=0-', // Yêu cầu file từ byte 0 đến hết
-        },
+        headers: {'Range': 'bytes=0-'},
       );
 
       debugPrint(
         "DEBUG: Đã khởi tạo AudioSource với URI: http://10.0.2.2:3000/track/stream/alone.mp3",
       );
 
-      // Lắng nghe trạng thái kết nối
       _player.processingStateStream.listen((state) {
         debugPrint("DEBUG: Trạng thái xử lý audio: $state");
         String stateText = "Không xác định";
@@ -262,7 +258,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
               margin: EdgeInsets.symmetric(vertical: 20),
               child: ClipRRect(
                 child: Image.asset(
-                  Assets.MAKING_MY_WAVE,
+                  Assets.MAKING_MY_WAVE1,
                   width: double.infinity,
                   height: double.infinity,
                   fit: BoxFit.cover,
@@ -343,8 +339,6 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                 //     ],
                 //   ),
                 // ),
-
-                // Thêm ảnh đĩa quay ở đây
                 SizedBox(
                   child: AnimatedBuilder(
                     animation: _animationInfinityRotatePlaying,
@@ -355,9 +349,9 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                                 ? _animationInfinityRotatePlaying.value
                                 : 0,
                         child: Container(
-                          width: 300,
-                          height: 300,
-                          margin: EdgeInsets.all(50),
+                          width: 260,
+                          height: 260,
+                          margin: EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             boxShadow: [
@@ -371,7 +365,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
 
                           child: ClipOval(
                             child: Image.asset(
-                              Assets.MAKING_MY_WAVE,
+                              Assets.MAKING_MY_WAVE1,
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -389,7 +383,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: Image.asset(
-                            Assets.MAKING_MY_WAVE,
+                            Assets.MAKING_MY_WAVE1,
                             width: 60,
                             height: 60,
                             fit: BoxFit.cover,
@@ -486,7 +480,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                   ),
                 ),
 
-                SizedBox(height: 20),
+                SizedBox(height: 8),
 
                 // Các nút điều khiển
                 Row(
@@ -496,7 +490,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                       icon: Icon(
                         Icons.replay_10,
                         color: Colors.white,
-                        size: 60,
+                        size: 50,
                       ),
                       onPressed: _skipBackward,
                     ),
@@ -516,7 +510,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                       icon: Icon(
                         Icons.forward_10,
                         color: Colors.white,
-                        size: 60,
+                        size: 50,
                       ),
                       onPressed: _skipForward,
                     ),

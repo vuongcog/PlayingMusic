@@ -38,7 +38,7 @@ class ToggleNav extends StatelessWidget {
 class _ToggleButtonText extends StatelessWidget {
   final String label;
 
-  const _ToggleButtonText({super.key, required this.label});
+  const _ToggleButtonText({required this.label});
 
   @override
   Widget build(BuildContext context) {

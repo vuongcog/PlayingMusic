@@ -12,10 +12,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(), // Trang tìm kiếm nhạc
-    FavoriteScreen(), // Trang nhạc yêu thích
-  ];
+  final List<Widget> _screens = const [HomeScreen(), FavoriteScreen()];
 
   void _onItemTapped(int index) {
     setState(() {

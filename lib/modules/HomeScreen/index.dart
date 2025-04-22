@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:working_message_mobile/constants/list.dart';
 import 'package:working_message_mobile/model/track.dart';
 import 'package:working_message_mobile/modules/MusicPlayerScreen/index.dart';
+import 'package:working_message_mobile/utils/shared.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<Track> tracks = [];
+  List<String> likedTrackIds = []; // Danh sách các track đã yêu thích theo id
   int currentPage = 1;
   int totalPages = 1;
   final int pageSize = 10;
@@ -23,7 +25,51 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    fetchTracks();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    try {
+      await fetchLikedTracks();
+      await fetchTracks();
+    } catch (e) {
+      print("Lỗi khi khởi tạo dữ liệu: $e");
+    }
+  }
+
+  Future<void> addLikeTrack(String trackId) async {
+    String? userId = await getUserIdFromToken();
+    if (userId != null) {
+      final response = await http.post(
+        Uri.parse('${Assets.API_URL}/user/$userId/like/$trackId'),
+      );
+
+      if (response.statusCode == 200) {
+        print('Đã thêm bài hát vào danh sách yêu thích');
+        fetchLikedTracks();
+      } else {
+        print('Lỗi khi thêm bài hát vào danh sách yêu thích');
+      }
+    }
+  }
+
+  Future<void> fetchLikedTracks() async {
+    String? userId = await getUserIdFromToken();
+    final url = "${Assets.API_URL}/user/like/${userId}";
+    final uri = Uri.parse(url);
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final List result = jsonDecode(response.body);
+        setState(() {
+          likedTrackIds = result.map((e) => e['id'] as String).toList();
+        });
+      } else {
+        print("❌ Lỗi khi fetch liked tracks: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("⚠️ Exception khi fetch liked tracks: $e");
+    }
   }
 
   Future<void> fetchTracks() async {
@@ -63,13 +109,69 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _toggleLike(Track track) async {
+    final bool wasLiked = likedTrackIds.contains(track.id);
+
+    setState(() {
+      if (wasLiked) {
+        likedTrackIds.remove(track.id);
+      } else {
+        likedTrackIds.add(track.id);
+      }
+    });
+
+    String? userId = await getUserIdFromToken();
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để thích bài hát')),
+      );
+
+      setState(() {
+        if (wasLiked) {
+          likedTrackIds.add(track.id);
+        } else {
+          likedTrackIds.remove(track.id);
+        }
+      });
+      return;
+    }
+
+    try {
+      final url = '${Assets.API_URL}/user/$userId/like/${track.id}';
+      final response = await http
+          .post(Uri.parse('${Assets.API_URL}/user/$userId/like/${track.id}'))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        print(
+          'Lỗi khi thêm bài hát vào danh sách yêu thích: ${response.statusCode}',
+        );
+        setState(() {
+          if (wasLiked) {
+            likedTrackIds.add(track.id);
+          } else {
+            likedTrackIds.remove(track.id);
+          }
+        });
+      }
+    } catch (e) {
+      print('Exception khi thêm bài hát vào danh sách yêu thích: $e');
+      setState(() {
+        if (wasLiked) {
+          likedTrackIds.add(track.id);
+        } else {
+          likedTrackIds.remove(track.id);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorTheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: Colors.black,
-
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -159,6 +261,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: const TextStyle(color: Colors.white70),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(
+                                  likedTrackIds.contains(track.id)
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color:
+                                      likedTrackIds.contains(track.id)
+                                          ? Colors.red
+                                          : Colors.white,
+                                ),
+                                onPressed: () {
+                                  _toggleLike(track); // Cập nhật like/unlike
+                                },
                               ),
                               onTap: () {
                                 Navigator.push(

@@ -6,5 +6,6 @@ class Assets {
   static const String MAKING_MY_WAVE1 =
       "assets/images/main-image/makingmyway.png";
 
-  static const String API_URL = "http://192.168.3.102:3000";
+  static const String API_URL = "http://192.168.3.106:3000";
+  static const String IMAGE_URL = "$API_URL/src/assets/images";
 }

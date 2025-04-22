@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:working_message_mobile/constants/list.dart';
+import 'package:working_message_mobile/model/track.dart';
 // Nếu bạn sử dụng LockCachingAudioSource, bạn cần import
 // import 'package:just_audio_background/just_audio_background.dart';
 
 class FullMusicPlayerScreen extends StatefulWidget {
-  const FullMusicPlayerScreen({super.key, required this.title});
+  const FullMusicPlayerScreen({super.key, required this.track});
 
-  final String title;
+  final Track track;
+
   @override
   _FullMusicPlayerScreenState createState() {
     return _FullMusicPlayerScreenState();
@@ -43,12 +45,12 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
       });
 
       final audioSource = ProgressiveAudioSource(
-        Uri.parse('http://192.168.3.102:3000/track/stream/alone.mp3'),
+        Uri.parse('${Assets.API_URL}/track/stream/${widget.track.fileUrl}'),
         headers: {'Range': 'bytes=0-'},
       );
 
       debugPrint(
-        "DEBUG: Đã khởi tạo AudioSource với URI: http://10.0.2.2:3000/track/stream/alone.mp3",
+        "DEBUG: Đã khởi tạo AudioSource với URI: http://10.0.2.2:3000/track/stream/${widget.track.fileUrl}",
       );
 
       _player.processingStateStream.listen((state) {
@@ -257,8 +259,9 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
               height: double.infinity,
               margin: EdgeInsets.symmetric(vertical: 20),
               child: ClipRRect(
-                child: Image.asset(
-                  Assets.MAKING_MY_WAVE1,
+                child: Image.network(
+                  '${Assets.IMAGE_URL}/${widget.track.imageUrl}',
+
                   width: double.infinity,
                   height: double.infinity,
                   fit: BoxFit.cover,
@@ -296,7 +299,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    widget.title,
+                    widget.track.title,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -364,8 +367,8 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                           ),
 
                           child: ClipOval(
-                            child: Image.asset(
-                              Assets.MAKING_MY_WAVE1,
+                            child: Image.network(
+                              '${Assets.IMAGE_URL}/${widget.track.imageUrl}',
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -382,8 +385,8 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                       Container(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
-                          child: Image.asset(
-                            Assets.MAKING_MY_WAVE1,
+                          child: Image.network(
+                            '${Assets.IMAGE_URL}/${widget.track.imageUrl}',
                             width: 60,
                             height: 60,
                             fit: BoxFit.cover,
@@ -396,7 +399,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.title,
+                              widget.track.title,
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -406,7 +409,7 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              "Sơn Tùng MTP",
+                              widget.track.artist,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

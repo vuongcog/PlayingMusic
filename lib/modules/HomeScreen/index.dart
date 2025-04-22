@@ -1,21 +1,24 @@
-import 'package:flutter/material.dart';
-import 'package:working_message_mobile/components/ToggleNav/index.dart';
-import 'package:working_message_mobile/constants/list.dart';
-import 'package:working_message_mobile/modules/MusicPlayerScreen/index.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:working_message_mobile/constants/list.dart';
+import 'package:working_message_mobile/model/track.dart';
+import 'package:working_message_mobile/modules/MusicPlayerScreen/index.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
   @override
-  _HomeScreenState createState() {
-    return _HomeScreenState();
-  }
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  List<dynamic> tracks = [];
+  List<Track> tracks = [];
+  int currentPage = 1;
+  int totalPages = 1;
+  final int pageSize = 10;
+  String searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -23,24 +26,40 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchTracks();
   }
 
-  void _handleToggle(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   Future<void> fetchTracks() async {
+    final uri = Uri.parse(
+      '${Assets.API_URL}/track?page=$currentPage&limit=$pageSize&search=$searchQuery',
+    );
+
     try {
-      final response = await http.get(Uri.parse('${Assets.API_URL}/track'));
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
+        final Map<String, dynamic> result = jsonDecode(response.body);
+        final List<dynamic> items = result['data'];
         setState(() {
-          tracks = jsonDecode(response.body);
+          tracks = items.map((e) => Track.fromJson(e)).toList();
+          totalPages = result['totalPages'];
         });
       } else {
-        print('❌ Lỗi khi fetch track: ${response.statusCode}');
+        print("❌ Lỗi khi fetch tracks: ${response.statusCode}");
       }
     } catch (e) {
-      print('⚠️ Exception khi fetch track: $e');
+      print("⚠️ Exception khi fetch tracks: $e");
+    }
+  }
+
+  void _onSearch(String value) {
+    setState(() {
+      searchQuery = value.trim();
+      currentPage = 1;
+    });
+    fetchTracks();
+  }
+
+  void _goToPage(int page) {
+    if (page >= 1 && page <= totalPages) {
+      setState(() => currentPage = page);
+      fetchTracks();
     }
   }
 
@@ -49,83 +68,135 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorTheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 200,
-              height: 156,
-              child: Text(
-                "DANNY AVILLA ALBUMES",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ToggleNav(
-              selectedIndex: _selectedIndex,
-              onPressed: _handleToggle,
-              colorTheme: colorTheme,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children:
-                      tracks.map((track) {
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => FullMusicPlayerScreen(
-                                      title:
-                                          track['title'] ?? 'Không rõ tiêu đề',
-                                    ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: 144,
-                            height: 186,
-                            margin: const EdgeInsets.only(right: 10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 140,
-                                  child: Image.asset(Assets.Card),
-                                ),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  child: Tooltip(
-                                    message: track['artist'] ?? '',
-                                    child: Text(
-                                      track['title'] ?? 'Không có tiêu đề',
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
+      backgroundColor: Colors.black,
+
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "DANH SÁCH NHẠC",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              const Text(
+                "Bài hát mới nhất",
+                style: TextStyle(fontSize: 16, color: Colors.white70),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _searchController,
+                onSubmitted: _onSearch,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: '🔍 Tìm kiếm bài hát...',
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Colors.white12,
+                  prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.white54),
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearch('');
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child:
+                    tracks.isEmpty
+                        ? const Center(
+                          child: Text(
+                            "Không có kết quả",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        )
+                        : ListView.builder(
+                          itemCount: tracks.length,
+                          itemBuilder: (context, index) {
+                            final track = tracks[index];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                              ),
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  '${Assets.IMAGE_URL}/${track.imageUrl}',
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (_, __, ___) => const Icon(
+                                        Icons.image_not_supported,
+                                        color: Colors.white,
+                                      ),
+                                ),
+                              ),
+                              title: Text(
+                                track.title,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                track.artist,
+                                style: const TextStyle(color: Colors.white70),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (_) =>
+                                            FullMusicPlayerScreen(track: track),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                    onPressed: () => _goToPage(currentPage - 1),
+                  ),
+                  Text(
+                    'Trang $currentPage / $totalPages',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                    ),
+                    onPressed: () => _goToPage(currentPage + 1),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

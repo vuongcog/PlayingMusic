@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:working_message_mobile/app-routers/index.dart';
 import 'package:working_message_mobile/objects/app_theme.dart';
 import 'package:working_message_mobile/objects/theme_provider.dart';
+import 'package:working_message_mobile/utils/shared.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -16,7 +18,7 @@ class App extends StatelessWidget {
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.isDartMode ? ThemeMode.dark : ThemeMode.light,
       // home: HomePage(),
-      initialRoute: '/',
+      initialRoute: '/splash',
       onGenerateRoute: AppRouter.generateRoute,
     );
   }
@@ -31,11 +33,45 @@ class HomePage extends StatefulWidget {
   }
 }
 
-class _HomePage extends State<HomePage> {
+class _HomePage extends State<HomePage> with WidgetsBindingObserver {
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkLoginStatus();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // Trang được hiển thị lại (ví dụ: sau khi vuốt quay lại)
+      _checkLoginStatus();
+    }
+  }
+
+  // Kiểm tra trạng thái đăng nhập
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    setState(() {
+      _isLoggedIn = token != null && token.isNotEmpty;
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Gỡ observer
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final colorTheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         leading: Switch(
@@ -54,7 +90,6 @@ class _HomePage extends State<HomePage> {
                   Container(
                     padding: EdgeInsets.all(8),
                     child: Container(
-                      // width: 356,
                       height: 400,
                       decoration: BoxDecoration(
                         image: DecorationImage(
@@ -93,24 +128,20 @@ class _HomePage extends State<HomePage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                onPressed: () {},
+                onPressed: () => Navigator.pushNamed(context, '/home'),
                 color: colorTheme.secondary,
-                child: MaterialButton(
-                  onPressed: () => {Navigator.pushNamed(context, '/home')},
-                  child: Text(
-                    "Get Started",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+                child: Text(
+                  "Get Started",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  MaterialButton(
-                    onPressed: () {},
-                    child: MaterialButton(
+            if (!_isLoggedIn) // Chỉ hiển thị nếu chưa đăng nhập
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    MaterialButton(
                       onPressed: () => Navigator.pushNamed(context, '/login'),
                       child: Text(
                         "Đăng nhập",
@@ -120,11 +151,9 @@ class _HomePage extends State<HomePage> {
                         ),
                       ),
                     ),
-                  ),
-                  MaterialButton(
-                    onPressed: () {},
-                    child: MaterialButton(
-                      onPressed: () => {Navigator.pushNamed(context, '/home')},
+                    MaterialButton(
+                      onPressed:
+                          () => Navigator.pushNamed(context, '/register'),
                       child: Text(
                         "Đăng ký",
                         style: TextStyle(
@@ -133,10 +162,9 @@ class _HomePage extends State<HomePage> {
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

@@ -19,7 +19,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   String? userId;
   List<Track> tracks = [];
   bool isLoading = true;
-
+  bool _isLoggedIn = false;
   Future<void> fetchLikedTracks() async {
     setState(() {
       isLoading = true;
@@ -65,6 +65,14 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     }
   }
 
+  Future<void> _checkLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    setState(() {
+      _isLoggedIn = token != null && token.isNotEmpty;
+    });
+  }
+
   Future<void> removeLikeTrack(String trackId) async {
     String? userId = await getUserIdFromToken();
     if (userId != null) {
@@ -102,6 +110,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   void initState() {
     super.initState();
     fetchLikedTracks();
+    _checkLogin();
   }
 
   @override
@@ -140,7 +149,9 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
           Icon(Icons.favorite_border, size: 80, color: Colors.grey[400]),
           SizedBox(height: 16),
           Text(
-            'Chưa có bài hát yêu thích',
+            _isLoggedIn
+                ? "Chưa có bài hát yêu thích"
+                : "Hãy đăng nhập để có thể lưu các bài hát",
             style: TextStyle(
               color: Colors.grey[400],
               fontSize: 18,

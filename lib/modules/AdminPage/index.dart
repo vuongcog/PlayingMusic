@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
@@ -18,45 +19,76 @@ class AdminMusicPage extends StatefulWidget {
 
 class _AdminMusicPageState extends State<AdminMusicPage> {
   List<Track> tracks = [];
-  File? selectedMusicFile;
-  String? musicFileName;
-  File? selectedImageFile;
-  String? imageFileName;
-
-  // 🆕 Các controller cho metadata
-
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController artistController = TextEditingController();
-  final TextEditingController albumController = TextEditingController();
-  final TextEditingController genreController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
+  int currentPage = 1;
+  int totalPages = 1;
+  final int limit = 10;
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
     fetchTracks();
+    searchController.addListener(() {
+      setState(() {
+        currentPage = 1;
+      });
+      fetchTracks();
+    });
   }
 
-  Future<void> fetchTracks() async {
-    final response = await http.get(Uri.parse('${Assets.API_URL}/track'));
+  Future<void> fetchTracks({bool isRefresh = false}) async {
+    if (isLoading) return;
 
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
+    setState(() {
+      isLoading = true;
+      if (isRefresh) tracks.clear();
+    });
+
+    try {
+      final queryParams = {
+        'page': currentPage.toString(),
+        'limit': limit.toString(),
+        'search': searchController.text.trim(),
+      };
+      final uri = Uri.parse(
+        '${Assets.API_URL}/track',
+      ).replace(queryParameters: queryParams);
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+        final List<dynamic> data = jsonResponse['data'] ?? [];
+        final int pages = jsonResponse['totalPages'] ?? 1;
+
+        setState(() {
+          tracks = data.map((e) => Track.fromJson(e)).toList();
+          totalPages = pages;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '❌ Không thể tải danh sách bài hát: ${response.body}',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
       setState(() {
-        tracks = data.map((e) => Track.fromJson(e)).toList();
+        isLoading = false;
       });
-    } else {
-      print("❌ Failed to load tracks");
-    }
-  }
-
-  Future<void> pickMusicFile() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
-
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        selectedMusicFile = File(result.files.single.path!);
-        musicFileName = result.files.single.name;
-      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('⚠️ Lỗi: $e')));
+      }
     }
   }
 
@@ -66,35 +98,19 @@ class _AdminMusicPageState extends State<AdminMusicPage> {
     );
 
     if (response.statusCode == 200) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('🗑️ Xoá thành công')));
-      }
-      fetchTracks();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('🗑️ Xoá thành công')));
+      fetchTracks(isRefresh: true);
     } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Xoá thất bại: ${response.body}')),
-        );
-      }
-    }
-  }
-
-  Future<void> pickImageFile() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image);
-
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        selectedImageFile = File(result.files.single.path!);
-        imageFileName = result.files.single.name;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Xoá thất bại: ${response.body}')),
+      );
     }
   }
 
   void showEditTrackDialog(Track track) {
     final parentContext = context;
-
     final TextEditingController editTitle = TextEditingController(
       text: track.title,
     );
@@ -210,9 +226,7 @@ class _AdminMusicPageState extends State<AdminMusicPage> {
                       icon: const Icon(Icons.save),
                       label: const Text("Lưu"),
                       onPressed: () async {
-                        Navigator.of(parentContext).pop(); // đóng dialog edit
-
-                        // Mở loading
+                        Navigator.of(parentContext).pop();
                         showDialog(
                           context: parentContext,
                           barrierDismissible: false,
@@ -227,36 +241,30 @@ class _AdminMusicPageState extends State<AdminMusicPage> {
                             '${Assets.API_URL}/track/${track.id}',
                           );
                           final req = http.MultipartRequest('PUT', uri);
-
-                          // metadata
                           req.fields['title'] = editTitle.text;
                           req.fields['artist'] = editArtist.text;
                           req.fields['album'] = editAlbum.text;
                           req.fields['genre'] = editGenre.text;
 
-                          // nếu newMusicFile khác null thì gán
-                          final musicFile = newMusicFile;
-                          if (musicFile != null) {
+                          if (newMusicFile != null) {
                             final part = await http.MultipartFile.fromPath(
                               'audio',
-                              musicFile.path,
+                              newMusicFile!.path,
                             );
                             req.files.add(part);
                           }
 
-                          // tương tự với image
-                          final imageFileLocal = newImageFile;
-                          if (imageFileLocal != null) {
+                          if (newImageFile != null) {
                             final partImg = await http.MultipartFile.fromPath(
                               'image',
-                              imageFileLocal.path,
+                              newImageFile!.path,
                             );
                             req.files.add(partImg);
                           }
 
                           final streamed = await req.send();
                           final body = await streamed.stream.bytesToString();
-                          Navigator.of(parentContext).pop(); // đóng loading
+                          Navigator.of(parentContext).pop();
 
                           if (streamed.statusCode == 200) {
                             ScaffoldMessenger.of(parentContext).showSnackBar(
@@ -264,14 +272,14 @@ class _AdminMusicPageState extends State<AdminMusicPage> {
                                 content: Text('✅ Cập nhật thành công'),
                               ),
                             );
-                            fetchTracks();
+                            fetchTracks(isRefresh: true);
                           } else {
                             ScaffoldMessenger.of(parentContext).showSnackBar(
                               SnackBar(content: Text('❌ Lỗi: $body')),
                             );
                           }
                         } catch (e, st) {
-                          Navigator.of(parentContext).pop(); // đóng loading
+                          Navigator.of(parentContext).pop();
                           debugPrint('Update error: $e\n$st');
                           ScaffoldMessenger.of(
                             parentContext,
@@ -285,282 +293,370 @@ class _AdminMusicPageState extends State<AdminMusicPage> {
     );
   }
 
-  Future<void> uploadMusicFile() async {
-    if (selectedMusicFile == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Vui lòng chọn file nhạc!')),
-        );
-      }
-      return;
-    }
+  void showUploadDialog() {
+    final parentContext = context;
 
-    if (selectedImageFile == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Vui lòng chọn file ảnh bìa!')),
-        );
-      }
-      return;
-    }
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController artistController = TextEditingController();
+    final TextEditingController albumController = TextEditingController();
+    final TextEditingController genreController = TextEditingController();
+    File? selectedMusicFile;
+    String? musicFileName;
+    File? selectedImageFile;
+    String? imageFileName;
 
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text('🎵 Upload Bài Hát'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _PickerCard(
+                          icon: Icons.upload_file,
+                          label: musicFileName ?? 'Chọn nhạc',
+                          onTap: () async {
+                            final result = await FilePicker.platform.pickFiles(
+                              type: FileType.audio,
+                            );
+                            if (result?.files.single.path != null) {
+                              setState(() {
+                                selectedMusicFile = File(
+                                  result!.files.single.path!,
+                                );
+                                musicFileName = result.files.single.name;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _PickerCard(
+                          icon: Icons.image,
+                          label: imageFileName ?? 'Chọn ảnh',
+                          onTap: () async {
+                            final result = await FilePicker.platform.pickFiles(
+                              type: FileType.image,
+                            );
+                            if (result?.files.single.path != null) {
+                              setState(() {
+                                selectedImageFile = File(
+                                  result!.files.single.path!,
+                                );
+                                imageFileName = result.files.single.name;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildField('Tiêu đề', titleController),
+                        const SizedBox(height: 12),
+                        _buildField('Ca sĩ', artistController),
+                        const SizedBox(height: 12),
+                        _buildField('Album', albumController),
+                        const SizedBox(height: 12),
+                        _buildField('Thể loại', genreController),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      child: const Text("Huỷ"),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.send, size: 18),
+                      label: const Text("Gửi"),
+                      onPressed: () async {
+                        if (selectedMusicFile == null ||
+                            selectedImageFile == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '⚠️ Vui lòng chọn file nhạc và ảnh bìa!',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.of(context).pop(); // Đóng dialog upload
+
+                        // Lưu context hiện tại để sử dụng sau này
+                        final dialogContext = parentContext;
+
+                        // Hiển thị loading dialog
+                        showDialog(
+                          context: dialogContext,
+                          barrierDismissible: false,
+                          builder:
+                              (_) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                        );
+
+                        try {
+                          var request = http.MultipartRequest(
+                            'POST',
+                            Uri.parse('${Assets.API_URL}/track/upload'),
+                          );
+                          request.files.add(
+                            await http.MultipartFile.fromPath(
+                              'audio',
+                              selectedMusicFile!.path,
+                            ),
+                          );
+                          request.files.add(
+                            await http.MultipartFile.fromPath(
+                              'image',
+                              selectedImageFile!.path,
+                            ),
+                          );
+                          request.fields['title'] = titleController.text;
+                          request.fields['artist'] = artistController.text;
+                          request.fields['album'] = albumController.text;
+                          request.fields['genre'] = genreController.text;
+
+                          var response = await request.send();
+
+                          // Sử dụng dialogContext đã lưu để đóng loading dialog
+                          Navigator.of(dialogContext).pop();
+
+                          if (response.statusCode == 201) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('🎉 Upload thành công!'),
+                              ),
+                            );
+                            fetchTracks(isRefresh: true);
+                          } else {
+                            final responseBody =
+                                await response.stream.bytesToString();
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '❌ Upload thất bại! $responseBody',
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          // Sử dụng dialogContext đã lưu để đóng loading dialog trong trường hợp lỗi
+                          Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(
+                            dialogContext,
+                          ).showSnackBar(SnackBar(content: Text('⚠️ Lỗi: $e')));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+          ),
     );
+  }
 
-    try {
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${Assets.API_URL}/track/upload'),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('audio', selectedMusicFile!.path),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('image', selectedImageFile!.path),
-      );
-
-      // Thêm metadata vào yêu cầu
-      request.fields['title'] = titleController.text;
-      request.fields['artist'] = artistController.text;
-      request.fields['album'] = albumController.text;
-      request.fields['genre'] = genreController.text;
-
-      var response = await request.send();
-      Navigator.of(context).pop();
-
-      if (response.statusCode == 201) {
-        setState(() {
-          selectedMusicFile = null;
-          musicFileName = null;
-          selectedImageFile = null;
-          imageFileName = null;
-
-          titleController.clear();
-          artistController.clear();
-          albumController.clear();
-          genreController.clear();
-        });
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('🎉 Upload thành công!')),
-          );
-        }
-
-        fetchTracks();
-      } else {
-        final responseBody = await response.stream.bytesToString();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Upload thất bại! $responseBody')),
-          );
-        }
-      }
-    } catch (e) {
-      Navigator.of(context).pop();
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('⚠️ Lỗi: $e')));
-      }
-    }
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Text("Quản lý nhạc"),
-            MaterialButton(
-              child: Icon(Icons.refresh),
-              onPressed: () {
-                fetchTracks();
-              },
-            ),
-          ],
-        ),
+      // appBar: AppBar(
+      //   actions: [
+      //     IconButton(
+      //       icon: const Icon(Icons.refresh),
+      //       onPressed: () => fetchTracks(isRefresh: true),
+      //     ),
+      //   ],
+      // ),
+      floatingActionButton: SpeedDial(
+        animatedIcon: AnimatedIcons.menu_close, // icon chuyển động
+        backgroundColor: Colors.amber,
+        overlayOpacity: 0.1,
+        children: [
+          SpeedDialChild(
+            child: Icon(Icons.refresh),
+            onTap: () => fetchTracks(isRefresh: true),
+          ),
+          SpeedDialChild(child: Icon(Icons.add), onTap: showUploadDialog),
+        ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 👉 Bọc phần đầu bằng scroll view để tránh tràn
+            // Thanh tìm kiếm
+            TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Tìm kiếm bài hát',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                suffixIcon:
+                    searchController.text.isNotEmpty
+                        ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            searchController.clear();
+                            setState(() {
+                              currentPage = 1;
+                            });
+                            fetchTracks(isRefresh: true);
+                          },
+                        )
+                        : null,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Danh sách bài hát
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '🎵 Upload Bài Hát',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _PickerCard(
-                              icon: Icons.upload_file,
-                              label: musicFileName ?? 'Nhạc',
-                              onTap: pickMusicFile,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _PickerCard(
-                              icon: Icons.image,
-                              label: imageFileName ?? 'Ảnh',
-                              onTap: pickImageFile,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildField('Tiêu đề', titleController),
-                      const SizedBox(height: 12),
-                      _buildField('Ca sĩ', artistController),
-                      const SizedBox(height: 12),
-                      _buildField('Album', albumController),
-                      const SizedBox(height: 12),
-                      _buildField('Thể loại', genreController),
-
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(
-                            Icons.send,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            "Gửi",
-                            style: TextStyle(fontSize: 16, color: Colors.white),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          onPressed: uploadMusicFile,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                itemCount: tracks.length,
-                itemBuilder: (context, index) {
-                  final Track track = tracks[index];
-                  return ListTile(
-                    leading: Image.network(
-                      '${Assets.IMAGE_URL}/${track.imageUrl}',
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder:
-                          (_, __, ___) => const Icon(Icons.image_not_supported),
-                    ),
-                    title: Tooltip(
-                      message: track.title,
-                      child: Text(
-                        track.title,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    subtitle: Tooltip(
-                      message: track.artist,
-                      child: Text(
-                        track.artist,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        switch (value) {
-                          case 'play':
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (_) => FullMusicPlayerScreen(track: track),
+              child: RefreshIndicator(
+                onRefresh: () => fetchTracks(isRefresh: true),
+                child:
+                    isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : tracks.isEmpty
+                        ? const Center(child: Text('Không có bài hát nào'))
+                        : ListView.builder(
+                          itemCount: tracks.length,
+                          itemBuilder: (context, index) {
+                            final Track track = tracks[index];
+                            return ListTile(
+                              leading: Image.network(
+                                '${Assets.IMAGE_URL}/${track.imageUrl}',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) =>
+                                        const Icon(Icons.image_not_supported),
+                              ),
+                              title: Tooltip(
+                                message: track.title,
+                                child: Text(
+                                  track.title,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              subtitle: Tooltip(
+                                message: track.artist,
+                                child: Text(
+                                  track.artist,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'play':
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => FullMusicPlayerScreen(
+                                                track: track,
+                                              ),
+                                        ),
+                                      );
+                                      break;
+                                    case 'update':
+                                      showEditTrackDialog(track);
+                                      break;
+                                    case 'delete':
+                                      showConfirmDialog(
+                                        context: context,
+                                        title: "Xoá bài hát",
+                                        message:
+                                            "Bạn có chắc chắn muốn xoá \"${track.title}\"?",
+                                        confirmText: "Xoá",
+                                        isDanger: true,
+                                        onConfirm: () => deleteTrack(track.id),
+                                      );
+                                      break;
+                                  }
+                                },
+                                itemBuilder:
+                                    (context) => [
+                                      const PopupMenuItem<String>(
+                                        value: 'play',
+                                        child: ListTile(
+                                          leading: Icon(Icons.play_arrow),
+                                          title: Text('Nghe thử'),
+                                        ),
+                                      ),
+                                      const PopupMenuItem<String>(
+                                        value: 'update',
+                                        child: ListTile(
+                                          leading: Icon(Icons.edit),
+                                          title: Text('Chỉnh sửa'),
+                                        ),
+                                      ),
+                                      const PopupMenuItem<String>(
+                                        value: 'delete',
+                                        child: ListTile(
+                                          leading: Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                          ),
+                                          title: Text('Xoá'),
+                                        ),
+                                      ),
+                                    ],
                               ),
                             );
-                            break;
-                          case 'update':
-                            showEditTrackDialog(track);
-                            break;
-                          case 'delete':
-                            showConfirmDialog(
-                              context: context,
-                              title: "Xoá bài hát",
-                              message:
-                                  "Bạn có chắc chắn muốn xoá \"${track.title}\"?",
-                              confirmText: "Xoá",
-                              isDanger: true,
-                              onConfirm: () => deleteTrack(track.id),
-                            );
-                            break;
-                        }
-                      },
-
-                      itemBuilder:
-                          (context) => [
-                            const PopupMenuItem<String>(
-                              value: 'play',
-                              child: ListTile(
-                                leading: Icon(Icons.play_arrow),
-                                title: Text('Nghe thử'),
-                              ),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'update',
-                              child: ListTile(
-                                leading: Icon(Icons.edit),
-                                title: Text('Chỉnh sửa'),
-                              ),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'delete',
-                              child: ListTile(
-                                leading: Icon(Icons.delete, color: Colors.red),
-                                title: Text('Xoá'),
-                              ),
-                            ),
-                          ],
-                    ),
-                  );
-                },
+                          },
+                        ),
               ),
             ),
+
+            // Phân trang
+            if (totalPages > 1)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed:
+                          currentPage > 1 && !isLoading
+                              ? () {
+                                setState(() {
+                                  currentPage--;
+                                });
+                                fetchTracks();
+                              }
+                              : null,
+                    ),
+                    Text('Trang $currentPage / $totalPages'),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_forward),
+                      onPressed:
+                          currentPage < totalPages && !isLoading
+                              ? () {
+                                setState(() {
+                                  currentPage++;
+                                });
+                                fetchTracks();
+                              }
+                              : null,
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -581,9 +677,9 @@ Widget _buildField(
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       labelText: label,
-      labelStyle: TextStyle(color: Colors.white70, fontSize: 13),
+      labelStyle: const TextStyle(color: Colors.white, fontSize: 13),
       enabledBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.white24),
+        borderSide: const BorderSide(color: Colors.grey),
         borderRadius: BorderRadius.circular(6),
       ),
       focusedBorder: OutlineInputBorder(
@@ -594,6 +690,7 @@ Widget _buildField(
   );
 }
 
+// Widget tái sử dụng cho Picker
 class _PickerCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -612,19 +709,19 @@ class _PickerCard extends StatelessWidget {
       child: Container(
         height: 48,
         decoration: BoxDecoration(
-          color: Colors.grey[800],
+          color: Colors.grey[200],
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white24),
+          border: Border.all(color: Colors.grey),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white70, size: 20),
+            Icon(icon, color: Colors.black54, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(color: Colors.black, fontSize: 14),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

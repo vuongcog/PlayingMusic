@@ -1,9 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:working_message_mobile/constants/list.dart';
 import 'package:working_message_mobile/model/track.dart';
-// Nếu bạn sử dụng LockCachingAudioSource, bạn cần import
-// import 'package:just_audio_background/just_audio_background.dart';
 
 class FullMusicPlayerScreen extends StatefulWidget {
   const FullMusicPlayerScreen({super.key, required this.track});
@@ -20,8 +20,13 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationInfinityRotatePlayingController;
   late Animation<double> _animationInfinityRotatePlaying;
-
   final AudioPlayer _player = AudioPlayer();
+
+  late StreamSubscription _positionSubscription;
+  late StreamSubscription _durationSubscription;
+  late StreamSubscription _playerStateSubscription;
+  late StreamSubscription _processingStateSubscription;
+  late StreamSubscription _playbackEventSubscription;
 
   // Biến theo dõi trạng thái
   bool _isPlaying = false;
@@ -49,14 +54,21 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
         headers: {'Range': 'bytes=0-'},
       );
 
-      debugPrint(
-        "DEBUG: Đã khởi tạo AudioSource với URI: http://10.0.2.2:3000/track/stream/${widget.track.fileUrl}",
-      );
+      await _player.setAudioSource(audioSource).catchError((error) {
+        debugPrint("ERROR: Lỗi khi thiết lập AudioSource: $error");
+        if (mounted) {
+          setState(() {
+            _errorMessage = "Lỗi thiết lập: $error";
+          });
+        }
+        return null;
+      });
 
-      _player.processingStateStream.listen((state) {
+      _processingStateSubscription = _player.processingStateStream.listen((
+        state,
+      ) {
         debugPrint("DEBUG: Trạng thái xử lý audio: $state");
         String stateText = "Không xác định";
-
         switch (state) {
           case ProcessingState.idle:
             stateText = "Chưa sẵn sàng";
@@ -74,26 +86,15 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
             stateText = "Đã phát xong";
             break;
         }
-
-        setState(() {
-          _playerStateText = stateText;
-        });
+        if (mounted) {
+          setState(() {
+            _playerStateText = stateText;
+          });
+        }
       });
 
-      // Thiết lập AudioSource
-      debugPrint("DEBUG: Đang thiết lập AudioSource...");
-      await _player.setAudioSource(audioSource).catchError((error) {
-        debugPrint("ERROR: Lỗi khi thiết lập AudioSource: $error");
-        setState(() {
-          _errorMessage = "Lỗi thiết lập: $error";
-        });
-        return null;
-      });
-      debugPrint("DEBUG: Đã thiết lập AudioSource thành công");
-
-      // Lắng nghe thời lượng tổng cộng
-      _player.durationStream.listen((duration) {
-        if (duration != null) {
+      _durationSubscription = _player.durationStream.listen((duration) {
+        if (duration != null && mounted) {
           debugPrint("DEBUG: Tổng thời lượng: ${duration.inSeconds} giây");
           setState(() {
             _totalDuration = duration;
@@ -101,43 +102,48 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
         }
       });
 
-      // Lắng nghe vị trí hiện tại
-      _player.positionStream.listen((position) {
-        setState(() {
-          _currentPosition = position;
-        });
+      _positionSubscription = _player.positionStream.listen((position) {
+        if (mounted) {
+          setState(() {
+            _currentPosition = position;
+          });
+        }
       });
 
-      // Lắng nghe trạng thái phát
-      _player.playerStateStream.listen((state) {
+      _playerStateSubscription = _player.playerStateStream.listen((state) {
         debugPrint(
           "DEBUG: Trạng thái player: ${state.playing ? 'đang phát' : 'tạm dừng'}",
         );
-        setState(() {
-          _isPlaying = state.playing;
-          if (_isPlaying) {
-            _animationInfinityRotatePlayingController.repeat();
-          } else {
-            _animationInfinityRotatePlayingController.stop();
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _isPlaying = state.playing;
+            if (_isPlaying) {
+              _animationInfinityRotatePlayingController.repeat();
+            } else {
+              _animationInfinityRotatePlayingController.stop();
+            }
+          });
+        }
       });
 
-      // Lắng nghe lỗi
-      _player.playbackEventStream.listen(
+      _playbackEventSubscription = _player.playbackEventStream.listen(
         (event) {},
         onError: (Object e, StackTrace st) {
           debugPrint("ERROR: Lỗi trong quá trình phát: $e");
-          setState(() {
-            _errorMessage = "Lỗi phát: $e";
-          });
+          if (mounted) {
+            setState(() {
+              _errorMessage = "Lỗi phát: $e";
+            });
+          }
         },
       );
     } catch (e) {
       debugPrint("ERROR: Lỗi tổng thể khi tải nhạc: $e");
-      setState(() {
-        _errorMessage = "Lỗi: $e";
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Lỗi: $e";
+        });
+      }
     }
   }
 
@@ -200,6 +206,13 @@ class _FullMusicPlayerScreenState extends State<FullMusicPlayerScreen>
   void dispose() {
     debugPrint("DEBUG: Giải phóng tài nguyên");
     _animationInfinityRotatePlayingController.dispose();
+
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _playerStateSubscription?.cancel();
+    _processingStateSubscription?.cancel();
+    _playbackEventSubscription?.cancel();
+
     _player.dispose();
     super.dispose();
   }

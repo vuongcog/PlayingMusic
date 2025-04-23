@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:working_message_mobile/constants/list.dart';
 import 'package:working_message_mobile/model/track.dart';
 import 'package:working_message_mobile/modules/MusicPlayerScreen/index.dart';
@@ -166,6 +167,118 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String formatDuration(int seconds) {
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$secs';
+  }
+
+  // Hàm tiện ích để định dạng DateTime (ví dụ: 12/04/2025)
+  String formatDate(DateTime date) {
+    final formatter = DateFormat('dd/MM/yyyy');
+    return formatter.format(date);
+  }
+
+  Widget buildTrackListTile({
+    required BuildContext context,
+    required Track track,
+    required List<String> likedTrackIds,
+    required Function(Track) onToggleLike,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          '${Assets.IMAGE_URL}/${track.imageUrl}',
+          width: 60,
+          height: 60,
+          fit: BoxFit.cover,
+          errorBuilder:
+              (_, __, ___) =>
+                  const Icon(Icons.image_not_supported, color: Colors.white),
+        ),
+      ),
+      title: Text(
+        track.title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            track.artist,
+            style: const TextStyle(color: Colors.white70),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Album: ${track.album ?? 'Không có'}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            'Thể loại: ${track.genre ?? 'Không có'}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            'Thời lượng: ${formatDuration(track.duration)}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            'Tạo: ${formatDate(track.createdAt)}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          // Bỏ qua updatedAt để giữ giao diện gọn, có thể thêm nếu cần
+          // Text(
+          //   'Cập nhật: ${formatDate(track.updatedAt)}',
+          //   style: const TextStyle(color: Colors.white54, fontSize: 12),
+          //   maxLines: 1,
+          //   overflow: TextOverflow.ellipsis,
+          // ),
+        ],
+      ),
+      trailing: IconButton(
+        icon: Icon(
+          likedTrackIds.contains(track.id)
+              ? Icons.favorite
+              : Icons.favorite_border,
+          color: likedTrackIds.contains(track.id) ? Colors.red : Colors.white,
+        ),
+        onPressed: () {
+          onToggleLike(track); // Cập nhật like/unlike
+        },
+      ),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FullMusicPlayerScreen(track: track),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final remainingSeconds = (seconds % 60).toString().padLeft(2, '0');
+    return "$minutes:$remainingSeconds";
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorTheme = Theme.of(context).colorScheme;
@@ -178,14 +291,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "DANH SÁCH NHẠC",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
               const SizedBox(height: 8),
               const Text(
                 "Bài hát mới nhất",
@@ -231,7 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             final track = tracks[index];
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(
-                                vertical: 4,
+                                vertical: 6,
+                                horizontal: 12,
                               ),
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
@@ -251,16 +357,77 @@ class _HomeScreenState extends State<HomeScreen> {
                                 track.title,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: Text(
-                                track.artist,
-                                style: const TextStyle(color: Colors.white70),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    track.artist,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        "Thể loại: ",
+                                        style: const TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Tooltip(
+                                        message: 'Thể loại: ${track.genre}',
+                                        child: Container(
+                                          width: 40,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            track.genre!,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Icon(
+                                        Icons.timer,
+                                        size: 14,
+                                        color: Colors.white38,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _formatDuration(
+                                          track.duration,
+                                        ), // Chuyển thời lượng giây → mm:ss
+                                        style: const TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               trailing: IconButton(
                                 icon: Icon(
@@ -273,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           : Colors.white,
                                 ),
                                 onPressed: () {
-                                  _toggleLike(track); // Cập nhật like/unlike
+                                  _toggleLike(track);
                                 },
                               ),
                               onTap: () {

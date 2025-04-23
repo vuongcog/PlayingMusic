@@ -44,11 +44,7 @@ class _LoginPageState extends State<LoginPage> {
         final decodedToken = JwtDecoder.decode(accessToken);
         final role = decodedToken["role"];
 
-        if (role == "admin") {
-          Navigator.pushNamed(context, '/admin');
-        } else {
-          Navigator.pushNamed(context, '/home');
-        }
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         _showErrorDialog(data['message'] ?? "Đăng nhập thất bại");
       }
@@ -66,12 +62,16 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder:
           (_) => AlertDialog(
-            title: Text("Lỗi"),
-            content: Text(message),
+            backgroundColor: Colors.grey[900],
+            title: const Text("Lỗi", style: TextStyle(color: Colors.white)),
+            content: Text(
+              message,
+              style: const TextStyle(color: Colors.white70),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("OK"),
+                child: const Text("OK", style: TextStyle(color: Colors.amber)),
               ),
             ],
           ),
@@ -83,31 +83,97 @@ class _LoginPageState extends State<LoginPage> {
     final colorTheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text("Đăng nhập")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(labelText: "Tên đăng nhập"),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(labelText: "Mật khẩu"),
-              obscureText: true,
-            ),
-            SizedBox(height: 20),
-            _isLoading
-                ? CircularProgressIndicator()
-                : ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorTheme.primary,
-                  ),
-                  child: Text("Đăng nhập"),
+      backgroundColor: Colors.black,
+      appBar: AppBar(elevation: 0, backgroundColor: Colors.black),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.music_note, size: 80, color: Colors.amber),
+              const SizedBox(height: 16),
+              const Text(
+                'Đăng nhập',
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
                 ),
-          ],
+              ),
+              const SizedBox(height: 32),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Tên đăng nhập',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  prefixIcon: const Icon(Icons.person, color: Colors.white70),
+                  filled: true,
+                  fillColor: Colors.grey[850],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Mật khẩu',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  prefixIcon: const Icon(Icons.lock, color: Colors.white70),
+                  filled: true,
+                  fillColor: Colors.grey[850],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.black,
+                            ),
+                          )
+                          : const Text(
+                            'Đăng nhập',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/register'),
+                child: const Text(
+                  'Chưa có tài khoản? Đăng ký',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
